@@ -1,0 +1,144 @@
+/* dashboard.css */
+
+.dashboard {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #f9fafb;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.btn {
+  padding: 6px 12px;
+  margin: 4px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-logout {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-create {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-upload {
+  background: #10b981;
+  color: white;
+}
+
+.btn-open {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-download {
+  background: #10b981;
+  color: white;
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-page {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.btn-page:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.breadcrumb-item:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-segment {
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
+  color: #6b7280;
+}
+
+/* Search bar */
+.search-bar {
+  margin: 12px 0;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Data table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.data-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+/* File/folder icons */
+.icon-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #111827;
+  font-weight: 500;
+}
+
+/* Pagination */
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+}
