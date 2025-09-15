@@ -1,144 +1,275 @@
-/* dashboard.css */
-
 .dashboard {
-  padding: 20px;
+  padding: 16px;
   font-family: Arial, sans-serif;
-  background: #f9fafb;
+  background: #c5c1dd;
   min-height: 100vh;
 }
 
+/* Header */
 .dashboard-header {
+  background: #8f8ff73a; /* your purple */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  padding: 1px 12px;
+  border-radius: 0;
 }
-
-.btn {
-  padding: 6px 12px;
-  margin: 4px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
+.dashboard-header h3 {
+  font-size: 16px;
+  color: rgb(24, 23, 23);
+  font-weight: bold;
 }
-
 .btn-logout {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-create {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-upload {
-  background: #10b981;
-  color: white;
-}
-
-.btn-open {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-download {
-  background: #10b981;
-  color: white;
-}
-
-.btn-delete {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-page {
-  background: #e5e7eb;
-  color: #111827;
-}
-
-.btn-page:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background: #28153a;
+  color: rgb(255, 255, 255);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
 }
 
 /* Breadcrumb */
 .breadcrumb {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  font-size: 14px;
+  margin: 10px 0;
+  padding: 0;
+  background: transparent; /* no white ribbon */
 }
-
+.shadow-box {
+  background: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
 .breadcrumb-item {
   cursor: pointer;
-  color: #2563eb;
+  color: blue;
   font-weight: 500;
+  margin: 0 4px;
 }
-
 .breadcrumb-item:hover {
   text-decoration: underline;
 }
-
 .breadcrumb-segment {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin-left: 4px;
+}
+
+/* Controls */
+.dashboard-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.control-group {
   display: flex;
   align-items: center;
-  margin: 0 4px;
-  color: #6b7280;
+  gap: 8px;
 }
 
-/* Search bar */
-.search-bar {
-  margin: 12px 0;
+.dashboard-controls input[type="text"],
+.dashboard-controls input[type="file"],
+.dashboard-controls button {
+  height: 36px;
+  padding: 0 10px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
 }
 
-.search-bar input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+.dashboard-controls input[type="file"] {
+  padding: 4px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 14px;
 }
 
-/* Data table */
+/* Table */
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
-  background: white;
-  border-radius: 8px;
+  background: rgb(217, 217, 236);
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(67, 38, 194, 0.1);
+  font-size: 14px; /* smaller, cleaner font */
 }
 
 .data-table th,
 .data-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 12px;
   text-align: left;
+  padding: 6px 10px; /* reduced gap (was 10px 14px) */
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #4a3aff;
+}
+
+.clickable:hover {
+  text-decoration: underline;
 }
 
 .data-table th {
-  background: #f3f4f6;
+  background: #f1f1f1;
+  font-size: 20px;
   font-weight: 600;
 }
-
-/* File/folder icons */
-.icon-text {
+.data-table tr:nth-child(even) {
+  background: #ececf7;
+}
+.data-table tr:hover {
+  background: #757596;
+  cursor: pointer;
+}
+.file-cell {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #111827;
+  font-size: 14px;
   font-weight: 500;
+}
+
+/* Buttons inside table rows */
+.data-table .btn {
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.btn-open {
+  background: #007bff;
+  color: white;
+}
+.btn-download {
+  background: #28a745;
+  color: white;
+}
+.btn-delete {
+  background: #e74c3c;
+  color: rgb(3, 3, 3);
+}
+.btn-page {
+  background: #daaaaa;
+  margin: 0 4px;
+}
+.btn-page:disabled {
+  opacity: 0.5;
 }
 
 /* Pagination */
 .pagination {
   margin-top: 16px;
   display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Upload icon button */
+.btn-upload-icon {
+  background: #6b46c1;
+  color: white;
+  border: none;
+  width: 55px;
+  padding: 0;
+  height: 36px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-upload-icon:hover {
+  background: #5a3ba8;
+}
+
+/* Compact spacing */
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* tighter spacing */
+}
+
+/* Compact spacing for file rows */
+.file-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* reduced gap */
+}
+
+.file-name {
+  margin-left: 1px;
+}
+
+/* Upload group compact layout */
+.upload-group {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* reduced spacing between Choose + Upload */
+}
+
+/* Upload Progress Popup */
+.upload-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.upload-box {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  width: 300px;
+}
+
+.upload-box h4 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.upload-box p {
   font-size: 14px;
+  color: #666;
+  word-break: break-all;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #6b46c1;
+  transition: width 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
 }

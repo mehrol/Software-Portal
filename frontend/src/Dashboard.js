@@ -1,41 +1,61 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import client from "./network";
 import "./styles/dashboard.css";
-import { Folder, File, ChevronRight } from "lucide-react";
+import "./utils/fileIcons";
+import { Folder, File, ChevronRight, Search, UploadCloud } from "lucide-react";
 
 function FolderRow({ f, onOpen, onDelete, onDownload, role }) {
   return (
-    <tr>
-      <td>
+    <tr className={f.type === "folder" ? "row-folder" : "row-file"}>
+      {/* Name column */}
+      <td className="file-cell">
         {f.type === "folder" ? (
-          <span className="icon-text">
-            <Folder size={18} /> {f.name}
-          </span>
+          <>
+            <Folder
+              size={18}
+              className="clickable"
+              onClick={() => onOpen(f)}
+            />
+            <span
+              className="file-name clickable"
+              onClick={() => onOpen(f)}
+            >
+              {f.name}
+            </span>
+          </>
         ) : (
-          <span className="icon-text">
-            <File size={18} /> {f.name}
-          </span>
+          <>
+            <File size={18} />
+            <span
+              className="file-name file-link"
+              onClick={() => onDownload(f)}
+            >
+              {f.name}
+            </span>
+          </>
         )}
       </td>
+
+      {/* Type */}
+      <td className="type-cell">{f.type === "folder" ? "Folder" : "File"}</td>
+
+      {/* Updated */}
       <td>{new Date(f.updatedAt).toLocaleString()}</td>
-      <td>
-        {f.type === "folder" ? (
-          <button className="btn btn-open" onClick={() => onOpen(f)}>
-            Open
-          </button>
-        ) : (
-          <button className="btn btn-download" onClick={() => onDownload(f)}>
-            Download
-          </button>
-        )}
-      </td>
-      <td>
-        {role === "ADMIN" && (
-          <button className="btn btn-delete" onClick={() => onDelete(f)}>
+
+      {/* Delete */}
+      {role === "ADMIN" && (
+        <td>
+          <button
+            className="btn btn-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(f);
+            }}
+          >
             Delete
           </button>
-        )}
-      </td>
+        </td>
+      )}
     </tr>
   );
 }
@@ -45,9 +65,12 @@ export default function Dashboard({ onLogout, role }) {
   const [parentPath, setParentPath] = useState("");
   const [name, setName] = useState("");
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // pagination states
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -58,12 +81,21 @@ export default function Dashboard({ onLogout, role }) {
   async function load() {
     const res = await client.get("/folders", { params: { path: parentPath } });
     setItems(res.data);
-    setPage(1); // reset to first page when changing folder
+    setPage(1);
   }
 
   async function createFolder(e) {
     e.preventDefault();
     if (!name) return;
+
+    const exists = items.some(
+      (f) => f.type === "folder" && f.name.toLowerCase() === name.toLowerCase()
+    );
+    if (exists) {
+      alert("⚠️ Folder already exists in this directory");
+      return;
+    }
+
     await client.post(
       "/folders",
       { name, parentPath },
@@ -75,15 +107,11 @@ export default function Dashboard({ onLogout, role }) {
 
   async function deleteItem(f) {
     if (!window.confirm("Delete this item?")) return;
-    try {
-      await client.delete("/folders", {
-        params: { path: parentPath ? parentPath + "/" + f.name : f.name },
-        headers: { role },
-      });
-      load();
-    } catch (e) {
-      alert(e.response?.data?.error || "Cannot delete");
-    }
+    await client.delete("/folders", {
+      params: { path: parentPath ? parentPath + "/" + f.name : f.name },
+      headers: { role },
+    });
+    load();
   }
 
   async function downloadFile(f) {
@@ -98,25 +126,56 @@ export default function Dashboard({ onLogout, role }) {
       link.setAttribute("download", f.name);
       document.body.appendChild(link);
       link.click();
-    } catch (e) {
+    } catch {
       alert("Download failed");
     }
   }
 
-  async function handleUpload(e) {
-    e.preventDefault();
-    if (!uploadFile) return;
+  async function handleFileChangeAndUpload(e) {
+    const file = e.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    const exists = items.some(
+      (f) => f.type === "file" && f.name.toLowerCase() === file.name.toLowerCase()
+    );
+    if (exists) {
+      alert("⚠️ File already exists in this directory");
+      // Reset the file input to allow re-selection of the same file
+      e.target.value = null;
+      return;
+    }
+    
+    setUploadFile(file);
+
     const formData = new FormData();
-    formData.append("file", uploadFile);
+    formData.append("file", file);
     formData.append("path", parentPath);
-    await client.post("/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-        role,
-      },
-    });
-    setUploadFile(null);
-    load();
+
+    try {
+      setIsUploading(true);
+      await client.post("/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data", role },
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percent);
+        },
+      });
+      setUploadFile(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      load();
+    } catch {
+      alert("Upload failed");
+      setUploadFile(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+    }
+    // Reset the file input to allow re-selection
+    e.target.value = null;
   }
 
   function openFolder(f) {
@@ -129,12 +188,10 @@ export default function Dashboard({ onLogout, role }) {
     setParentPath(newPath);
   }
 
-  // search filter
   const filteredItems = items.filter((f) =>
-    f.name.toLowerCase().includes(search.toLowerCase())
+    f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // pagination logic
   const totalPages = Math.ceil(filteredItems.length / pageSize);
   const paginatedItems = filteredItems.slice(
     (page - 1) * pageSize,
@@ -143,6 +200,7 @@ export default function Dashboard({ onLogout, role }) {
 
   return (
     <div className="dashboard">
+      {/* Header */}
       <div className="dashboard-header">
         <h3>Dashboard - {role}</h3>
         <button className="btn btn-logout" onClick={onLogout}>
@@ -150,16 +208,68 @@ export default function Dashboard({ onLogout, role }) {
         </button>
       </div>
 
-      {/* breadcrumb */}
+      {/* Controls */}
+      <div className="dashboard-controls">
+        <div className="control-group">
+          {role === "ADMIN" && (
+            <>
+              {/* Create Folder */}
+              <form onSubmit={createFolder} className="control-group">
+                <input
+                  type="text"
+                  placeholder="Folder name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <button type="submit" className="btn btn-create">
+                  Create
+                </button>
+              </form>
+              
+              {/* Upload Icon Button */}
+              <div className="upload-group">
+                <button
+                  type="button"
+                  className="btn btn-upload-icon"
+                  onClick={() => fileInputRef.current.click()}
+                >
+                  <UploadCloud size={16} />
+                </button>
+                <input
+                  type="file"
+                  hidden
+                  ref={fileInputRef}
+                  onChange={handleFileChangeAndUpload}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="control-group">
+          <input
+            type="text"
+            placeholder="Search here..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button
+            className="btn btn-search"
+            onClick={() => setSearchQuery(search)}
+          >
+            <Search size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Breadcrumb */}
       <div className="breadcrumb">
-        <span
-          className="breadcrumb-item"
-          onClick={() => setParentPath("")}
-        >
+        <span className="breadcrumb-item" onClick={() => setParentPath("")}>
           Root
         </span>
         {parentPath &&
-          parentPath.split("/").map((p, i, arr) => (
+          parentPath.split("/").map((p, i) => (
             <span key={i} className="breadcrumb-segment">
               <ChevronRight size={14} />
               <span
@@ -172,46 +282,14 @@ export default function Dashboard({ onLogout, role }) {
           ))}
       </div>
 
-      {role === "ADMIN" && (
-        <div className="dashboard-actions">
-          <form onSubmit={createFolder} className="form-inline">
-            <input
-              placeholder="Folder name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <button type="submit" className="btn btn-create">
-              Create
-            </button>
-          </form>
-
-          <form onSubmit={handleUpload} className="form-inline">
-            <input
-              type="file"
-              onChange={(e) => setUploadFile(e.target.files[0])}
-            />
-            <button type="submit" className="btn btn-upload">
-              Upload
-            </button>
-          </form>
-        </div>
-      )}
-
-      <div className="search-bar">
-        <input
-          placeholder="Search here..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
+      {/* Table */}
       <table className="data-table">
         <thead>
           <tr>
             <th>Name</th>
+            <th>Type</th>
             <th>Updated</th>
-            <th>Action</th>
-            {role === "ADMIN" && <th>Delete</th>} {/* ✅ Only show for admin */}
+            {role === "ADMIN" && <th>Delete</th>}
           </tr>
         </thead>
         <tbody>
@@ -228,7 +306,7 @@ export default function Dashboard({ onLogout, role }) {
         </tbody>
       </table>
 
-      {/* pagination */}
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="pagination">
           <button
@@ -248,6 +326,24 @@ export default function Dashboard({ onLogout, role }) {
           >
             Next
           </button>
+        </div>
+      )}
+
+      {/* Upload Progress Box */}
+      {isUploading && (
+        <div className="upload-overlay">
+          <div className="upload-box">
+            <h4>Uploading...</h4>
+            {uploadFile && <p>{uploadFile.name}</p>}
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${uploadProgress}%` }}
+              >
+                {uploadProgress}%
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

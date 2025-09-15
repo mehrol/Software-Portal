@@ -22,7 +22,7 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-container">
-      <h2>Wittybrains Portal - Login</h2>
+      <h2 className="login-title">Wittybrains Portal - Login</h2>
       <form className="login-form" onSubmit={submit}>
         <input
           placeholder="Username"
@@ -35,8 +35,10 @@ export default function Login({ onLogin }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button type="submit">Login</button>
-        {err && <div className="error">{err}</div>}
+        <button type="submit" className="btn btn-login">
+          Login
+        </button>
+        {err && <div className="error-message">{err}</div>}
       </form>
     </div>
   );
