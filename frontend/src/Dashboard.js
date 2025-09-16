@@ -2,47 +2,134 @@ import React, { useEffect, useState, useRef } from "react";
 import client from "./network";
 import "./styles/dashboard.css";
 import "./utils/fileIcons";
-import { Folder, File, ChevronRight, Search, UploadCloud } from "lucide-react";
+import {
+  Folder,
+  File,
+  ChevronRight,
+  UploadCloud,
+  ArrowUp,
+  ArrowDown,
+  Link as LinkIcon,
+} from "lucide-react";
 
+// ------------------- Create Folder Modal -------------------
+function CreateFolderModal({ isVisible, onClose, onCreateFolder, items }) {
+  const [folderName, setFolderName] = useState("");
+
+  if (!isVisible) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!folderName.trim()) {
+      alert("Folder name cannot be empty.");
+      return;
+    }
+    const exists = items.some(
+      (f) => f.type === "folder" && f.name.toLowerCase() === folderName.toLowerCase()
+    );
+    if (exists) {
+      onCreateFolder(folderName, true); // already exists
+    } else {
+      onCreateFolder(folderName, false);
+    }
+    setFolderName("");
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h3>Create New Folder</h3>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+            placeholder="Enter folder name"
+            required
+            autoFocus
+          />
+          <div className="modal-actions">
+            <button type="button" className="btn btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-create">
+              Create
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ------------------- Upload Link Modal -------------------
+function UploadLinkModal({ isVisible, onClose, onUploadLink }) {
+  const [url, setUrl] = useState("");
+
+  if (!isVisible) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!url.trim()) {
+      alert("URL cannot be empty.");
+      return;
+    }
+    await onUploadLink(url);
+    setUrl("");
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h3>Upload File from Link</h3>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="Paste file URL here"
+            required
+            autoFocus
+          />
+          <div className="modal-actions">
+            <button type="button" className="btn btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-create">
+              Upload
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ------------------- Table Row -------------------
 function FolderRow({ f, onOpen, onDelete, onDownload, role }) {
   return (
     <tr className={f.type === "folder" ? "row-folder" : "row-file"}>
-      {/* Name column */}
       <td className="file-cell">
         {f.type === "folder" ? (
           <>
-            <Folder
-              size={18}
-              className="clickable"
-              onClick={() => onOpen(f)}
-            />
-            <span
-              className="file-name clickable"
-              onClick={() => onOpen(f)}
-            >
+            <Folder size={18} className="clickable" onClick={() => onOpen(f)} />
+            <span className="file-name clickable" onClick={() => onOpen(f)}>
               {f.name}
             </span>
           </>
         ) : (
           <>
             <File size={18} />
-            <span
-              className="file-name file-link"
-              onClick={() => onDownload(f)}
-            >
+            <span className="file-name file-link" onClick={() => onDownload(f)}>
               {f.name}
             </span>
           </>
         )}
       </td>
-
-      {/* Type */}
       <td className="type-cell">{f.type === "folder" ? "Folder" : "File"}</td>
-
-      {/* Updated */}
       <td>{new Date(f.updatedAt).toLocaleString()}</td>
-
-      {/* Delete */}
+      <td>{f.type === "file" ? f.size : "--"}</td>
       {role === "ADMIN" && (
         <td>
           <button
@@ -60,15 +147,20 @@ function FolderRow({ f, onOpen, onDelete, onDownload, role }) {
   );
 }
 
+// ------------------- Main Dashboard -------------------
 export default function Dashboard({ onLogout, role }) {
   const [items, setItems] = useState([]);
   const [parentPath, setParentPath] = useState("");
-  const [name, setName] = useState("");
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: "", type: "" });
+  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "ascending" });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showUploadLinkModal, setShowUploadLinkModal] = useState(false);
+
   const fileInputRef = useRef(null);
 
   const [page, setPage] = useState(1);
@@ -84,34 +176,44 @@ export default function Dashboard({ onLogout, role }) {
     setPage(1);
   }
 
-  async function createFolder(e) {
-    e.preventDefault();
-    if (!name) return;
+  const showNotification = (message, type) => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: "", type: "" });
+    }, 3000);
+  };
 
-    const exists = items.some(
-      (f) => f.type === "folder" && f.name.toLowerCase() === name.toLowerCase()
-    );
-    if (exists) {
-      alert("⚠️ Folder already exists in this directory");
+  async function createFolder(folderName, alreadyExists) {
+    setShowCreateModal(false);
+    if (alreadyExists) {
+      showNotification("Folder already exists!", "error");
       return;
     }
-
-    await client.post(
-      "/folders",
-      { name, parentPath },
-      { headers: { role } }
-    );
-    setName("");
-    load();
+    try {
+      await client.post(
+        "/folders",
+        { name: folderName, parentPath },
+        { headers: { role } }
+      );
+      load();
+      showNotification("Folder created successfully!", "success");
+    } catch {
+      showNotification("Failed to create folder.", "error");
+    }
   }
 
   async function deleteItem(f) {
     if (!window.confirm("Delete this item?")) return;
-    await client.delete("/folders", {
-      params: { path: parentPath ? parentPath + "/" + f.name : f.name },
-      headers: { role },
-    });
-    load();
+    try {
+      await client.delete("/folders", {
+        params: { path: parentPath ? parentPath + "/" + f.name : f.name },
+        headers: { role },
+      });
+      load();
+      showNotification("Item deleted successfully!", "success");
+    } catch {
+      showNotification("Deletion failed.", "error");
+    }
   }
 
   async function downloadFile(f) {
@@ -133,20 +235,17 @@ export default function Dashboard({ onLogout, role }) {
 
   async function handleFileChangeAndUpload(e) {
     const file = e.target.files[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const exists = items.some(
       (f) => f.type === "file" && f.name.toLowerCase() === file.name.toLowerCase()
     );
     if (exists) {
       alert("⚠️ File already exists in this directory");
-      // Reset the file input to allow re-selection of the same file
       e.target.value = null;
       return;
     }
-    
+
     setUploadFile(file);
 
     const formData = new FormData();
@@ -158,9 +257,7 @@ export default function Dashboard({ onLogout, role }) {
       await client.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data", role },
         onUploadProgress: (progressEvent) => {
-          const percent = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(percent);
         },
       });
@@ -174,8 +271,20 @@ export default function Dashboard({ onLogout, role }) {
       setUploadProgress(0);
       setIsUploading(false);
     }
-    // Reset the file input to allow re-selection
     e.target.value = null;
+  }
+
+  async function handleUploadLink(url) {
+    try {
+      await client.post("/uploadUrl", null, {
+        params: { url, path: parentPath },
+        headers: { role },
+      });
+      load();
+      showNotification("File uploaded from link!", "success");
+    } catch {
+      showNotification("Failed to upload from link.", "error");
+    }
   }
 
   function openFolder(f) {
@@ -188,15 +297,43 @@ export default function Dashboard({ onLogout, role }) {
     setParentPath(newPath);
   }
 
-  const filteredItems = items.filter((f) =>
+  const handleSort = (key) => {
+    let direction = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.type === "folder" && b.type !== "folder") return -1;
+    if (a.type !== "folder" && b.type === "folder") return 1;
+
+    const aValue =
+      sortConfig.key === "name" ? a.name.toLowerCase() : new Date(a.updatedAt);
+    const bValue =
+      sortConfig.key === "name" ? b.name.toLowerCase() : new Date(b.updatedAt);
+
+    if (aValue < bValue) {
+      return sortConfig.direction === "ascending" ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return sortConfig.direction === "ascending" ? 1 : -1;
+    }
+    return 0;
+  });
+
+  const filteredItems = sortedItems.filter((f) =>
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredItems.length / pageSize);
-  const paginatedItems = filteredItems.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+  const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return null;
+    return sortConfig.direction === "ascending" ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+  };
 
   return (
     <div className="dashboard">
@@ -213,25 +350,24 @@ export default function Dashboard({ onLogout, role }) {
         <div className="control-group">
           {role === "ADMIN" && (
             <>
-              {/* Create Folder */}
-              <form onSubmit={createFolder} className="control-group">
-                <input
-                  type="text"
-                  placeholder="Folder name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <button type="submit" className="btn btn-create">
-                  Create
+              {/* Create Folder Button */}
+              <div className="control-group">
+                <button
+                  type="button"
+                  className="btn btn-create"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  Create New Folder
                 </button>
-              </form>
-              
-              {/* Upload Icon Button */}
+              </div>
+
+              {/* Upload File Button */}
               <div className="upload-group">
                 <button
                   type="button"
                   className="btn btn-upload-icon"
                   onClick={() => fileInputRef.current.click()}
+                  title="Upload File"
                 >
                   <UploadCloud size={16} />
                 </button>
@@ -241,6 +377,18 @@ export default function Dashboard({ onLogout, role }) {
                   ref={fileInputRef}
                   onChange={handleFileChangeAndUpload}
                 />
+              </div>
+
+              {/* Upload Link Button */}
+              <div className="upload-group">
+                <button
+                  type="button"
+                  className="btn btn-upload-icon"
+                  onClick={() => setShowUploadLinkModal(true)}
+                  title="Upload from Link"
+                >
+                  <LinkIcon size={16} />
+                </button>
               </div>
             </>
           )}
@@ -252,14 +400,11 @@ export default function Dashboard({ onLogout, role }) {
             type="text"
             placeholder="Search here..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchQuery(e.target.value);
+            }}
           />
-          <button
-            className="btn btn-search"
-            onClick={() => setSearchQuery(search)}
-          >
-            <Search size={16} />
-          </button>
         </div>
       </div>
 
@@ -272,10 +417,7 @@ export default function Dashboard({ onLogout, role }) {
           parentPath.split("/").map((p, i) => (
             <span key={i} className="breadcrumb-segment">
               <ChevronRight size={14} />
-              <span
-                className="breadcrumb-item"
-                onClick={() => goToBreadcrumb(i)}
-              >
+              <span className="breadcrumb-item" onClick={() => goToBreadcrumb(i)}>
                 {p}
               </span>
             </span>
@@ -286,9 +428,14 @@ export default function Dashboard({ onLogout, role }) {
       <table className="data-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th onClick={() => handleSort("name")} className="sortable">
+              Name <SortIcon columnKey="name" />
+            </th>
             <th>Type</th>
-            <th>Updated</th>
+            <th onClick={() => handleSort("updatedAt")} className="sortable">
+              Modified <SortIcon columnKey="updatedAt" />
+            </th>
+            <th>Size</th>
             {role === "ADMIN" && <th>Delete</th>}
           </tr>
         </thead>
@@ -336,16 +483,34 @@ export default function Dashboard({ onLogout, role }) {
             <h4>Uploading...</h4>
             {uploadFile && <p>{uploadFile.name}</p>}
             <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${uploadProgress}%` }}
-              >
+              <div className="progress-fill" style={{ width: `${uploadProgress}%` }}>
                 {uploadProgress}%
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Notification Popup */}
+      {notification.show && (
+        <div className={`notification-popup ${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Modals */}
+      <CreateFolderModal
+        isVisible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreateFolder={createFolder}
+        items={items}
+      />
+
+      <UploadLinkModal
+        isVisible={showUploadLinkModal}
+        onClose={() => setShowUploadLinkModal(false)}
+        onUploadLink={handleUploadLink}
+      />
     </div>
   );
 }

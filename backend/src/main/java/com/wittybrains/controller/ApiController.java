@@ -7,8 +7,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.PostConstruct;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.*;
 
 @RestController
@@ -90,9 +92,18 @@ public class ApiController {
     @GetMapping("/folders")
     public ResponseEntity<?> listFolders(@RequestParam(defaultValue = "") String path,
                                          @RequestParam(required = false) String search) {
-        File folder = new File(storageDir, path);
+        String safePath = normalizePath(path);
+        File folder = new File(storageDir, safePath);
         if (!folder.exists() || !folder.isDirectory()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Folder not found"));
+            // Auto-create root directory if missing
+            if (safePath.isBlank()) {
+                boolean created = folder.mkdirs();
+                if (!created) {
+                    return ResponseEntity.status(500).body(Map.of("error", "Failed to initialize root folder"));
+                }
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("error", "Folder not found"));
+            }
         }
 
         List<Map<String, Object>> items = new ArrayList<>();
@@ -105,7 +116,9 @@ public class ApiController {
                 items.add(Map.of(
                         "name", f.getName(),
                         "type", f.isDirectory() ? "folder" : "file",
-                        "updatedAt", new Date(f.lastModified())));
+                        "updatedAt", new Date(f.lastModified()),
+                        "size", f.isDirectory() ? "" : formatBytes(f.length())
+                ));
             }
         }
 
@@ -120,7 +133,8 @@ public class ApiController {
             return ResponseEntity.status(403).body(Map.of("error", "Only admin can delete items"));
         }
 
-        File folder = new File(storageDir, path);
+        String safePath = normalizePath(path);
+        File folder = new File(storageDir, safePath);
         if (!folder.exists()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Item not found"));
         }
@@ -145,7 +159,8 @@ public class ApiController {
             return ResponseEntity.badRequest().body(Map.of("error", "File is empty"));
         }
 
-        File destDir = new File(storageDir, path);
+        String safePath = normalizePath(path);
+        File destDir = new File(storageDir, safePath);
         if (!destDir.exists() && !destDir.mkdirs()) {
             return ResponseEntity.status(500).body(Map.of("error", "Could not create destination folder"));
         }
@@ -164,10 +179,64 @@ public class ApiController {
         }
     }
 
+    // -------------------- UPLOAD FROM URL (ADMIN only) --------------------
+    @PostMapping("/uploadUrl")
+    public ResponseEntity<?> uploadFileFromUrl(@RequestHeader("role") String role,
+                                               @RequestParam("url") String fileUrl,
+                                               @RequestParam(defaultValue = "") String path) {
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only admin can upload files"));
+        }
+
+        try {
+            URL url = new URL(fileUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("HEAD");
+            conn.connect();
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode >= 400) {
+                return ResponseEntity.badRequest().body(Map.of("error", "URL is not downloadable"));
+            }
+
+            String fileName = new File(url.getPath()).getName();
+            if (fileName.isBlank()) {
+                fileName = "downloaded_" + System.currentTimeMillis();
+            }
+
+            String safePath = normalizePath(path);
+            File destDir = new File(storageDir, safePath);
+            if (!destDir.exists() && !destDir.mkdirs()) {
+                return ResponseEntity.status(500).body(Map.of("error", "Could not create destination folder"));
+            }
+
+            File destFile = new File(destDir, fileName);
+
+            try (InputStream in = url.openStream();
+                 FileOutputStream out = new FileOutputStream(destFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "File downloaded successfully",
+                    "file", destFile.getAbsolutePath(),
+                    "size", formatBytes(destFile.length())));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to download file from URL",
+                    "details", e.getMessage()));
+        }
+    }
+
     // -------------------- DOWNLOAD FILE --------------------
     @GetMapping("/download")
     public ResponseEntity<?> downloadFile(@RequestParam String path) {
-        File file = new File(storageDir, path);
+        String safePath = normalizePath(path);
+        File file = new File(storageDir, safePath);
         if (!file.exists() || !file.isFile()) {
             return ResponseEntity.badRequest().body(Map.of("error", "File not found"));
         }
@@ -177,6 +246,24 @@ public class ApiController {
     }
 
     // -------------------- HELPER --------------------
+    private String normalizePath(String inputPath) {
+        if (inputPath == null || inputPath.isBlank() || "null".equalsIgnoreCase(inputPath) || ".".equals(inputPath)) {
+            return "";
+        }
+        String normalized = inputPath.replace('\\', '/');
+        if (normalized.contains(":")) { // prevent Windows drive absolute paths like C:/
+            return "";
+        }
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.contains("..")) {
+            // prevent path traversal
+            return "";
+        }
+        return normalized;
+    }
+
     private boolean deleteRecursively(File file) {
         if (file.isDirectory()) {
             File[] children = file.listFiles();
@@ -187,5 +274,16 @@ public class ApiController {
             }
         }
         return file.delete();
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes == 0) {
+            return "0 Bytes";
+        }
+        final int k = 1024;
+        final String[] sizes = {"Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+        final int i = (int) Math.floor(Math.log(bytes) / Math.log(k));
+        DecimalFormat df = new DecimalFormat("#.##");
+        return df.format(bytes / Math.pow(k, i)) + " " + sizes[i];
     }
 }

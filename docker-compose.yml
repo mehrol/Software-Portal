@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: software-portal-backend
+    ports:
+      - "8082:8082" # Spring Boot exposed on host
+    volumes:
+      - "D:/Software-Portal/backend/storage:/app/storage"   # Persistent volume for uploaded files
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+      - STORAGE_DIR=/app/storage       # Pass storage directory to Spring Boot
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: software-portal-frontend
+    ports:
+      - "3001:3000" # React app exposed
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Fix hot reload in Docker
+    depends_on:
+      - backend
+
+volumes:
+  backend-storage:

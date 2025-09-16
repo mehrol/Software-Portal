@@ -1,8 +1,8 @@
-com/wittybrains/config/CorsConfig.class
-com/wittybrains/repository/FolderRepository.class
-com/wittybrains/security/TokenAuthFilter.class
-com/wittybrains/security/SecurityConfig.class
-com/wittybrains/config/CorsConfig$1.class
-com/wittybrains/model/Folder.class
-com/wittybrains/controller/ApiController.class
-com/wittybrains/WittybrainsBackendApplication.class
+com\wittybrains\security\TokenAuthFilter.class
+com\wittybrains\config\CorsConfig$1.class
+com\wittybrains\controller\ApiController.class
+com\wittybrains\security\SecurityConfig.class
+com\wittybrains\config\CorsConfig.class
+com\wittybrains\model\Folder.class
+com\wittybrains\WittybrainsBackendApplication.class
+com\wittybrains\repository\FolderRepository.class
