@@ -46,12 +46,12 @@ public class ApiController {
         String username = creds.get("username");
         String password = creds.get("password");
 
-        if ("admin".equals(username) && "password".equals(password)) {
+        if ("admin".equals(username) && "Witty$2026".equals(password)) {
             return ResponseEntity.ok(Map.of(
                     "token", "fake-jwt-token-for-" + username,
                     "role", "ADMIN",
                     "username", username));
-        } else if ("user".equals(username) && "password".equals(password)) {
+        } else if ("user".equals(username) && "mypass123".equals(password)) {
             return ResponseEntity.ok(Map.of(
                     "token", "fake-jwt-token-for-" + username,
                     "role", "USER",

@@ -14,7 +14,7 @@ export default function Login({ onLogin }) {
     e.preventDefault();
     try {
       // Note: Use your correct backend URL here
-      const res = await axios.post("http://192.168.1.91:8082/api/login", {
+      const res = await axios.post("http://192.168.1.146:8082/api/login", {
         username,
         password,
       });

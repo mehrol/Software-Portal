@@ -9,7 +9,7 @@ services:
     ports:
       - "8082:8082" # Spring Boot exposed on host
     volumes:
-      - "D:/Software-Portal/backend/storage:/app/storage"   # Persistent volume for uploaded files
+      - "/home/witty/storage:/app/storage"   # Persistent volume for uploaded files
     environment:
       - SPRING_PROFILES_ACTIVE=default
       - STORAGE_DIR=/app/storage       # Pass storage directory to Spring Boot
